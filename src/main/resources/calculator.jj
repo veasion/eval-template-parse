@@ -1,0 +1,72 @@
+options {
+    STATIC = false;
+}
+
+PARSER_BEGIN(Calculator)
+package cn.veasion.eval;
+import java.io.StringReader;
+import java.math.BigDecimal;
+public class Calculator {
+    static int SCALE = 6;
+    static int ROUNDING_MODE = BigDecimal.ROUND_HALF_UP;
+}
+PARSER_END(Calculator)
+
+SKIP : { " " }
+SKIP : { "\n" | "\r" | "\r\n" }
+TOKEN : { <OPEN: "("> }
+TOKEN : { <CLOSE: ")"> }
+TOKEN : { <ADD: "+"> }
+TOKEN : { <SUBTRACT: "-"> }
+TOKEN : { <MULTIPLY: "*"> }
+TOKEN : { <DIVIDE: "/"> }
+TOKEN : { <NUMBER: <DIGITS> | <DIGITS> "." <DIGITS> > }
+TOKEN: { <#DIGITS: (["0"-"9"])+ > }
+
+BigDecimal eval(): { BigDecimal result; }
+{
+    result = calc()
+    <EOF>
+    { return result; }
+}
+
+BigDecimal calc(): { BigDecimal temp; BigDecimal result; }
+{
+    result = highLevel()
+    (
+        <ADD>
+        temp = highLevel()
+        { result = result.add(temp); }
+        | <SUBTRACT>
+        temp = highLevel()
+        { result = result.subtract(temp); }
+    ) *
+    { return result; }
+}
+
+BigDecimal highLevel(): { BigDecimal temp; BigDecimal result; }
+{
+    result = getNumber()
+    (
+        <MULTIPLY>
+        temp = getNumber()
+        { result = result.multiply(temp); }
+        | <DIVIDE>
+        temp = getNumber()
+        { result = result.divide(temp, SCALE, ROUNDING_MODE); }
+    ) *
+    { return result; }
+}
+
+BigDecimal getNumber(): { Token token; BigDecimal val; }
+{
+    token = <NUMBER>
+    { return new BigDecimal(token.image); }
+    | <OPEN>
+    val = calc()
+    <CLOSE>
+    { return val; }
+    | <SUBTRACT>
+    val = getNumber()
+    { return val.negate(); }
+}
