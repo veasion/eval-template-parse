@@ -15,11 +15,7 @@
     </properties>
 
     <dependencies>
-        <dependency>
-            <groupId>com.alibaba</groupId>
-            <artifactId>fastjson</artifactId>
-            <version>1.2.78</version>
-        </dependency>
+        <!-- 依赖 -->
     </dependencies>
 
     <build>

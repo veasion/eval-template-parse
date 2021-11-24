@@ -111,14 +111,14 @@ BigDecimal powSqrtLevel(): { BigDecimal temp; BigDecimal result; }
     { return result; }
 }
 
-BigDecimal getNumber(): { Token token; BigDecimal val; }
+BigDecimal getNumber(): { Token token; BigDecimal val; Object obj; }
 {
     token = <NUMBER>
     { return new BigDecimal(token.image); }
-    | token = <VAR> val = evalVar(object, token.image)
+    | token = <VAR> obj = evalVar(object, token.image)
     {
-        putVar(token, getToken(0), val);
-        return val;
+        putVar(token, getToken(0), obj);
+        return EvalObjectUtils.toBigDecimal(obj);
     }
     | <LPAREN> val = calc() <RPAREN>
     { return val; }
@@ -128,7 +128,7 @@ BigDecimal getNumber(): { Token token; BigDecimal val; }
     { return val.negate(); }
 }
 
-BigDecimal evalVar(Object obj, String var): { Token token; }
+Object evalVar(Object obj, String var): { Token token; }
 {
     { obj = EvalObjectUtils.parseObject(obj, var); }
     (
@@ -140,7 +140,7 @@ BigDecimal evalVar(Object obj, String var): { Token token; }
         <OR> token = <NUMBER>
          { obj = obj != null ? obj : token.image; }
     ) ?
-    { return EvalObjectUtils.toBigDecimal(obj); }
+    { return obj; }
 }
 
 Object evalArray(Object obj): { Token token; Object temp; }
@@ -152,7 +152,10 @@ Object evalArray(Object obj): { Token token; Object temp; }
         { obj = EvalObjectUtils.parseObject(obj, token.image); }
         | token = <VAR>
         temp = evalVar(object, token.image)
-        { obj = EvalObjectUtils.parseArray(obj, temp); }
+        {
+            putVar(token, getToken(0), temp);
+            obj = EvalObjectUtils.parse(obj, temp);
+        }
     )
     { return obj; }
 }

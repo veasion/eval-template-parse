@@ -30,6 +30,14 @@ public class EvalObjectUtils {
         return new BigDecimal(object.toString());
     }
 
+    public static Object parse(Object object, Object param) {
+        if (isArray(object)) {
+            return parseArray(object, param);
+        } else {
+            return parseObject(object, String.valueOf(param));
+        }
+    }
+
     public static Object parseArray(Object object, Object indexObject) {
         int index = indexObject instanceof Number ? ((Number) indexObject).intValue() : Integer.parseInt(indexObject.toString());
         if (object != null) {
@@ -123,6 +131,10 @@ public class EvalObjectUtils {
             clazz = clazz.getSuperclass();
         }
         return null;
+    }
+
+    private static boolean isArray(Object object) {
+        return object != null && (object instanceof Collection || object.getClass().isArray());
     }
 
     private static <T> T getCache(Map<Class<?>, Map<String, T>> cacheMap, Class<?> clazz, String key) {

@@ -1,10 +1,10 @@
 package cn.veasion.eval;
 
-import com.alibaba.fastjson.JSONObject;
-
 import java.io.StringReader;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
 
 /**
@@ -30,7 +30,16 @@ public class CalculatorTest {
         testCalculate("4.99+(5.99+6.99)*1.06^2+√4");
 
         System.out.println("======================");
-        JSONObject temp1 = JSONObject.parseObject("{\"a\":1,\"b\":2,\"c\":3,\"aa\":-1,\"bb\":-2,\"cc\":-3,\"d\":4.99,\"s\":8}");
+        Map<String, Object> temp1 = new HashMap<String, Object>() {{
+            put("a", 1);
+            put("b", 2);
+            put("c", 3);
+            put("aa", -1);
+            put("bb", -2);
+            put("cc", -3);
+            put("d", 4.99);
+            put("s", 8);
+        }};
         testCalculate(temp1, "-b");
         testCalculate(temp1, "√s");
         testCalculate(temp1, "b^c");
@@ -45,11 +54,27 @@ public class CalculatorTest {
         testCalculate(temp1, "d+(5.99+6.99)*1.06^b+√(a+c)");
 
         System.out.println("======================");
-        JSONObject temp2 = JSONObject.parseObject("{\"商品金额\": 10.25,\"销售数量\": 10,\"优惠金额\":2}");
+        Map<String, Object> temp2 = new HashMap<String, Object>() {{
+            put("商品金额", 10.25);
+            put("销售数量", 10);
+            put("优惠金额", 2);
+        }};
         testCalculate(temp2, "商品金额*销售数量-优惠金额+默认值|5");
 
         System.out.println("======================");
-        JSONObject temp3 = JSONObject.parseObject("{\"order\":{\"product_amt\":10.25,\"num\":10,\"product\":{\"user\":{\"age\":1,\"arr\":[10, 20, 30]}}}}");
+        Map<String, Object> temp3 = new HashMap<String, Object>() {{
+            put("order", new HashMap<String, Object>() {{
+                put("product_amt", 10.25);
+                put("num", 10);
+                put("field", "num");
+                put("product", new HashMap<String, Object>() {{
+                    put("user", new HashMap<String, Object>() {{
+                        put("age", 1);
+                        put("array", new int[]{10, 20, 30});
+                    }});
+                }});
+            }});
+        }};
         Function<String, ?> function = s -> {
             if ("random".equals(s)) {
                 return Math.random();
@@ -58,7 +83,9 @@ public class CalculatorTest {
         };
         testCalculate(function, "order.product_amt * order.num + random");
         testCalculate(function, "order.product_amt * order.num + random");
-        testCalculate(function, "order.product.user['age'] + order.product.user.age + order.product.user.arr[0] + order.product.user.arr[order.product.user.age]");
+        testCalculate(function, "order[order.field] * 2");
+        testCalculate(function, "order.product.user['age'] + order.product.user.age");
+        testCalculate(function, "order.product.user.array[0] + order.product.user.array[order.product.user.age]");
     }
 
     private static void testCalculate(String eval) throws Exception {
@@ -69,8 +96,10 @@ public class CalculatorTest {
         Calculator parser = new Calculator(new StringReader(eval));
         parser.setObject(object);
         BigDecimal result = parser.eval();
-        System.out.println(eval + "=" + decimalFormat(result, 2));
-        System.out.println(parser.getVarMap());
+        System.out.println("计算：" + eval + "=" + decimalFormat(result, 2));
+        if (object != null) {
+            System.out.println("变量集：" + parser.getVarMap());
+        }
     }
 
     public static String decimalFormat(BigDecimal value, int n) {
