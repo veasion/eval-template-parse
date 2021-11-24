@@ -1,27 +1,63 @@
 options {
     STATIC = false;
+    JDK_VERSION = "1.8";
+    DEBUG_LOOKAHEAD = false;
 }
 
 PARSER_BEGIN(Calculator)
 package cn.veasion.eval;
+import java.util.Map;
+import java.util.HashMap;
 import java.io.StringReader;
 import java.math.BigDecimal;
+import cn.veasion.eval.EvalObjectUtils;
 public class Calculator {
     static int SCALE = 6;
     static int ROUNDING_MODE = BigDecimal.ROUND_HALF_UP;
+    private Object object;
+    private Map<String, Object> varMap;
+
+    public void setObject(Object object) {
+        this.object = object;
+        this.varMap = new HashMap<>();
+    }
+
+    public Map<String, Object> getVarMap() {
+        return varMap;
+    }
+
+    public void putVar(Token token, Token endToken, Object val) {
+        if (token == endToken || endToken == null) {
+            varMap.put(token.image, val);
+        } else {
+            StringBuilder sb = new StringBuilder();
+            appendToken(sb, token, endToken);
+            varMap.put(sb.toString(), val);
+        }
+    }
+
+    private void appendToken(StringBuilder sb, Token token, Token endToken) {
+        sb.append(token.image);
+        if (token == endToken || token.next == null) {
+            return;
+        }
+        appendToken(sb, token.next, endToken);
+    }
 }
 PARSER_END(Calculator)
 
-SKIP : { " " }
-SKIP : { "\n" | "\r" | "\r\n" }
-TOKEN : { <OPEN: "("> }
-TOKEN : { <CLOSE: ")"> }
-TOKEN : { <ADD: "+"> }
-TOKEN : { <SUBTRACT: "-"> }
-TOKEN : { <MULTIPLY: "*"> }
-TOKEN : { <DIVIDE: "/"> }
-TOKEN : { <NUMBER: <DIGITS> | <DIGITS> "." <DIGITS> > }
-TOKEN: { <#DIGITS: (["0"-"9"])+ > }
+SKIP : { " " | "\n" | "\r" | "\r\n" }
+TOKEN : { <LPAREN: "("> | <RPAREN: ")"> }
+TOKEN : { <LBRACKET: "["> | <RBRACKET: "]"> }
+TOKEN : { <ADD: "+"> | <SUBTRACT: "-"> }
+TOKEN : { <MULTIPLY: "*" | "×"> | <DIVIDE: "/" | "÷"> }
+TOKEN : { <DIVIDE_REMAINDER: "%"> }
+TOKEN : { <POW: "^"> | <SQRT: "√"> }
+TOKEN : { <POINT: "."> | <QUOTATION: "'" | "\""> | <OR: "|"> }
+TOKEN : { <NUMBER: <DIGITS> | <DIGITS> "." <DIGITS>> }
+TOKEN : { <VAR: <STR_VAR> | <STR_VAR><DIGITS> | <STR_VAR><DIGITS><STR_VAR>> }
+TOKEN : { <#DIGITS: (["0"-"9"])+> }
+TOKEN : { <#STR_VAR: (["a"-"z", "A"-"Z", "\u4e00"-"\u9fa5", "_"])+> }
 
 BigDecimal eval(): { BigDecimal result; }
 {
@@ -32,28 +68,45 @@ BigDecimal eval(): { BigDecimal result; }
 
 BigDecimal calc(): { BigDecimal temp; BigDecimal result; }
 {
-    result = highLevel()
+    result = multiplyDivideLevel()
     (
         <ADD>
-        temp = highLevel()
+        temp = multiplyDivideLevel()
         { result = result.add(temp); }
         | <SUBTRACT>
-        temp = highLevel()
+        temp = multiplyDivideLevel()
         { result = result.subtract(temp); }
     ) *
     { return result; }
 }
 
-BigDecimal highLevel(): { BigDecimal temp; BigDecimal result; }
+BigDecimal multiplyDivideLevel(): { BigDecimal temp; BigDecimal result; }
+{
+    result = powSqrtLevel()
+    (
+        <MULTIPLY>
+        temp = powSqrtLevel()
+        { result = result.multiply(temp); }
+        | <DIVIDE>
+        temp = powSqrtLevel()
+        { result = result.divide(temp, SCALE, ROUNDING_MODE); }
+        | <DIVIDE_REMAINDER>
+        temp = powSqrtLevel()
+        { result = result.divideAndRemainder(temp)[1]; }
+    ) *
+    { return result; }
+}
+
+BigDecimal powSqrtLevel(): { BigDecimal temp; BigDecimal result; }
 {
     result = getNumber()
     (
-        <MULTIPLY>
+        <SQRT>
         temp = getNumber()
-        { result = result.multiply(temp); }
-        | <DIVIDE>
+        { result = BigDecimal.valueOf(Math.pow(temp.doubleValue(), BigDecimal.ONE.divide(result, SCALE, ROUNDING_MODE).doubleValue())); }
+        | <POW>
         temp = getNumber()
-        { result = result.divide(temp, SCALE, ROUNDING_MODE); }
+        { result = BigDecimal.valueOf(Math.pow(result.doubleValue(), temp.doubleValue())); }
     ) *
     { return result; }
 }
@@ -62,11 +115,44 @@ BigDecimal getNumber(): { Token token; BigDecimal val; }
 {
     token = <NUMBER>
     { return new BigDecimal(token.image); }
-    | <OPEN>
-    val = calc()
-    <CLOSE>
+    | token = <VAR> val = evalVar(object, token.image)
+    {
+        putVar(token, getToken(0), val);
+        return val;
+    }
+    | <LPAREN> val = calc() <RPAREN>
     { return val; }
-    | <SUBTRACT>
-    val = getNumber()
+    | <SQRT> val = getNumber()
+    { return BigDecimal.valueOf(Math.sqrt(val.doubleValue())); }
+    | <SUBTRACT> val = getNumber()
     { return val.negate(); }
+}
+
+BigDecimal evalVar(Object obj, String var): { Token token; }
+{
+    { obj = EvalObjectUtils.parseObject(obj, var); }
+    (
+        <POINT> token = <VAR>
+        obj = evalVar(obj, token.image)
+        | <LBRACKET> obj = evalArray(obj) <RBRACKET>
+    ) *
+    (
+        <OR> token = <NUMBER>
+         { obj = obj != null ? obj : token.image; }
+    ) ?
+    { return EvalObjectUtils.toBigDecimal(obj); }
+}
+
+Object evalArray(Object obj): { Token token; Object temp; }
+{
+    (
+        token = <NUMBER>
+        { obj = EvalObjectUtils.parseArray(obj, token.image); }
+        | <QUOTATION> token = <VAR> <QUOTATION>
+        { obj = EvalObjectUtils.parseObject(obj, token.image); }
+        | token = <VAR>
+        temp = evalVar(object, token.image)
+        { obj = EvalObjectUtils.parseArray(obj, temp); }
+    )
+    { return obj; }
 }
