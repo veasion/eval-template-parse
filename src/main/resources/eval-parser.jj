@@ -1,0 +1,233 @@
+options {
+    STATIC = false;
+    JDK_VERSION = "1.8";
+    DEBUG_LOOKAHEAD = false;
+}
+
+PARSER_BEGIN(EvalParser)
+package cn.veasion.eval;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Objects;
+import java.io.StringReader;
+import java.util.function.BiFunction;
+import cn.veasion.eval.EvalObjectUtils;
+public class EvalParser {
+    private Object object;
+    private boolean varTrace = true;
+    private Map<String, Object> varMap = new HashMap<>();
+
+    public void setObject(Object object) {
+        this.object = object;
+        if (varMap.size() > 0) {
+            this.varMap = new HashMap<>();
+        }
+    }
+
+    public void setVarTrace(boolean varTrace) {
+        this.varTrace = varTrace;
+    }
+
+    public Map<String, Object> getVarMap() {
+        return varMap;
+    }
+
+    public Object eval(String eval) throws Exception {
+        return eval(null, eval);
+    }
+
+    public Object eval(Object object, String eval) throws Exception {
+        setObject(object);
+        ReInit(new StringReader(eval));
+        return eval();
+    }
+
+    public String evalReplace(Object object, String str) throws Exception {
+        return evalReplace(object, str, "${", "}");
+    }
+
+    public String evalReplace(Object object, String str, String prefix, String suffix) throws Exception {
+        setObject(object);
+        return EvalObjectUtils.evalReplace(object, str, prefix, suffix, new BiFunction<Object, String, Object>() {
+            @Override
+            public Object apply(Object o, String s) {
+                try {
+                    ReInit(new StringReader(s));
+                    return eval();
+                } catch (Exception e) {
+                    throw new RuntimeException("解析“"+ s +"”异常", e);
+                }
+            }
+        });
+    }
+
+    public void putVar(Token token, Token endToken, Object val) {
+        if (!varTrace) return;
+        if (token == endToken || endToken == null) {
+            varMap.put(token.image, val);
+        } else {
+            StringBuilder sb = new StringBuilder();
+            appendToken(sb, token, endToken);
+            varMap.put(sb.toString(), val);
+        }
+    }
+
+    private void appendToken(StringBuilder sb, Token token, Token endToken) {
+        sb.append(token.image);
+        if (token == endToken || token.next == null) {
+            return;
+        }
+        appendToken(sb, token.next, endToken);
+    }
+}
+PARSER_END(EvalParser)
+
+SPECIAL_TOKEN : { <SPACE: " " | "\r" | "\n" | "\f" | "\r\n"> }
+TOKEN : { <QUOTATION: "'" | "\""> | <QUESTION_MARK: "?"> | <COLON: ":"> | <POINT: "."> | <BANG: "!"> | <DEFAULT_VAL: "|"> }
+TOKEN : { <LPAREN: "("> | <RPAREN: ")"> | <LBRACKET: "["> | <RBRACKET: "]"> }
+TOKEN : { <OR: "||"> | <AND: "&&"> | <EQ: "=="> | <NEQ: "!="> | <GT: ">"> | <GTE: ">="> | <LT: "<"> | <LTE: "<="> }
+TOKEN : { <TRUE: "true"> | <FALSE: "false"> | <NULL: "null"> }
+TOKEN : { <NUMBER: <DIGITS> | <DIGITS> "." <DIGITS>> }
+TOKEN : { <VAR: <STR_VAR> | <STR_VAR><DIGITS> | <STR_VAR><DIGITS><STR_VAR>> }
+TOKEN : { <#DIGITS: (["0"-"9"])+> }
+TOKEN : { <#STR_VAR: (["a"-"z", "A"-"Z", "\u4e00"-"\u9fa5", "_", "$"])+> }
+
+Object eval(): { Object obj; }
+{
+    obj = Expression()
+    <EOF>
+    { return obj; }
+}
+
+Object Expression(): { Object ret; }
+{
+    ret = ConditionalExpression()
+    { return ret; }
+}
+
+Object ConditionalExpression(): { Object ret, left, right; }
+{
+    ret = ConditionalOrExpression()
+    [
+        <QUESTION_MARK>
+        left = Expression()
+        <COLON>
+        right = Expression()
+        { ret = EvalObjectUtils.isTrue(ret) ? left : right; }
+    ]
+    { return ret; }
+}
+
+Object ConditionalOrExpression(): { Object ret, temp; }
+{
+    ret = ConditionalAndExpression()
+    (
+        <OR>
+        temp = ConditionalAndExpression()
+        { ret = EvalObjectUtils.isTrue(ret) || EvalObjectUtils.isTrue(temp); }
+    ) *
+    { return ret; }
+}
+
+Object ConditionalAndExpression(): { Object ret, temp; }
+{
+    ret = ConditionalEvalExpression()
+    (
+        <AND>
+        temp = ConditionalEvalExpression()
+        { ret = EvalObjectUtils.isTrue(ret) && EvalObjectUtils.isTrue(temp); }
+    ) *
+    { return ret; }
+}
+
+Object ConditionalEvalExpression(): { Object ret, temp; }
+{
+    ret = NotExpression()
+    [
+        <EQ>
+        temp = NotExpression()
+        { ret = EvalObjectUtils.equals(ret, temp); }
+        | <NEQ>
+        temp = NotExpression()
+        { ret = !EvalObjectUtils.equals(ret, temp); }
+        | <GT>
+        temp = NotExpression()
+        { ret = EvalObjectUtils.compareTo(ret, temp) > 0; }
+        | <GTE>
+        temp = NotExpression()
+        { ret = EvalObjectUtils.compareTo(ret, temp) >= 0; }
+        | <LT>
+        temp = NotExpression()
+        { ret = EvalObjectUtils.compareTo(ret, temp) < 0; }
+        | <LTE>
+        temp = NotExpression()
+        { ret = EvalObjectUtils.compareTo(ret, temp) <= 0; }
+    ]
+    { return ret; }
+}
+
+Object NotExpression(): { Object ret, temp; }
+{
+    (
+        <BANG>
+        ret = EvalExpression()
+        { ret = !EvalObjectUtils.isTrue(ret); }
+        | ret = EvalExpression()
+    )
+    { return ret; }
+}
+
+Object EvalExpression(): { Object ret; Token token; }
+{
+    (
+        <TRUE>
+        { ret = true; }
+        | <FALSE>
+        { ret = false; }
+        | <NULL>
+        { ret = null; }
+        | token = <NUMBER>
+        { ret = token.image; }
+        | LOOKAHEAD(2)
+        <QUOTATION> token = <VAR> <QUOTATION>
+        { ret = token.image; }
+        | <QUOTATION> token = <NUMBER> <QUOTATION>
+        { ret = token.image; }
+        | token = <VAR>
+        ret = evalVar(object, token.image)
+        { putVar(token, getToken(0), ret); }
+        | <LPAREN> ret = Expression() <RPAREN>
+    )
+    { return ret; }
+}
+
+Object evalVar(Object obj, String var): { Token token; Object temp; }
+{
+    { obj = EvalObjectUtils.parseObject(obj, var); }
+    (
+        <POINT> token = <VAR>
+        obj = evalVar(obj, token.image)
+        | <LBRACKET> obj = evalArray(obj) <RBRACKET>
+    ) *
+    (
+        <DEFAULT_VAL> temp = EvalExpression()
+        { obj = obj != null ? obj : temp; }
+    ) *
+    { return obj; }
+}
+
+Object evalArray(Object obj): { Token token; Object temp; }
+{
+    (
+        token = <NUMBER>
+        { obj = EvalObjectUtils.parseArray(obj, token.image); }
+        | LOOKAHEAD(2)
+        <QUOTATION> token = <VAR> <QUOTATION>
+        { obj = EvalObjectUtils.parseObject(obj, token.image); }
+        | <QUOTATION> token = <NUMBER> <QUOTATION>
+        { obj = EvalObjectUtils.parseObject(obj, token.image); }
+        | temp = Expression()
+        { obj = EvalObjectUtils.parse(obj, temp); }
+    )
+    { return obj; }
+}

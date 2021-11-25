@@ -8,7 +8,9 @@ import java.lang.reflect.Modifier;
 import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /**
@@ -28,6 +30,59 @@ public class EvalObjectUtils {
             return (BigDecimal) object;
         }
         return new BigDecimal(object.toString());
+    }
+
+    public static boolean equals(Object obj1, Object obj2) {
+        if (obj1 == null && obj2 == null) {
+            return true;
+        }
+        if (obj1 == null || obj2 == null) {
+            return false;
+        }
+        return Objects.equals(obj1, obj2) || String.valueOf(obj1).equals(String.valueOf(obj2));
+    }
+
+    public static int compareTo(Object obj1, Object obj2) {
+        if (obj1 == null && obj2 == null) {
+            return 0;
+        }
+        if (obj1 instanceof Number && obj2 instanceof Number) {
+            return Double.compare(((Number) obj1).doubleValue(), ((Number) obj2).doubleValue());
+        } else {
+            BigDecimal o1 = obj1 != null ? new BigDecimal(obj1.toString()) : null;
+            BigDecimal o2 = obj2 != null ? new BigDecimal(obj2.toString()) : null;
+            if (o1 == null) {
+                return -1;
+            } else if (o2 == null) {
+                return 1;
+            }
+            return o1.compareTo(o2);
+        }
+    }
+
+    public static boolean isTrue(Object object) {
+        return !(object == null || Boolean.FALSE.equals(object) || "false".equalsIgnoreCase(object.toString()) || "".equals(object.toString().trim()) || "0".equals(object.toString()));
+    }
+
+    public static String evalReplace(Object object, String str, String prefix, String suffix, BiFunction<Object, String, Object> fun) {
+        StringBuilder sb = new StringBuilder();
+        int startIndex = 0, index, endIndex;
+        while ((index = str.indexOf(prefix, startIndex)) > -1) {
+            sb.append(str, startIndex, index);
+            endIndex = str.indexOf(suffix, index + prefix.length());
+            if (endIndex == -1) {
+                startIndex = index;
+                break;
+            }
+            String eval = str.substring(index + prefix.length(), endIndex);
+            if (!"".equals(eval.trim())) {
+                Object result = fun.apply(object, eval);
+                sb.append(result != null ? result.toString() : "");
+            }
+            startIndex = endIndex + suffix.length();
+        }
+        sb.append(str.substring(startIndex));
+        return sb.toString();
     }
 
     public static Object parse(Object object, Object param) {
@@ -131,6 +186,10 @@ public class EvalObjectUtils {
             clazz = clazz.getSuperclass();
         }
         return null;
+    }
+
+    private static boolean isNumber(Object object) {
+        return object != null && object.toString().matches("\\d+");
     }
 
     private static boolean isArray(Object object) {

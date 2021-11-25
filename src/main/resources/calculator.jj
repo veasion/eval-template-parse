@@ -16,11 +16,18 @@ public class Calculator {
     static int SCALE = 6;
     static int ROUNDING_MODE = BigDecimal.ROUND_HALF_UP;
     private Object object;
-    private Map<String, Object> varMap;
+    private boolean varTrace = true;
+    private Map<String, Object> varMap = new HashMap<>();
 
     public void setObject(Object object) {
         this.object = object;
-        this.varMap = new HashMap<>();
+        if (varMap.size() > 0) {
+            this.varMap = new HashMap<>();
+        }
+    }
+
+    public void setVarTrace(boolean varTrace) {
+        this.varTrace = varTrace;
     }
 
     public Map<String, Object> getVarMap() {
@@ -38,6 +45,7 @@ public class Calculator {
     }
 
     public void putVar(Token token, Token endToken, Object val) {
+        if (!varTrace) return;
         if (token == endToken || endToken == null) {
             varMap.put(token.image, val);
         } else {
@@ -68,7 +76,7 @@ TOKEN : { <POINT: "."> | <QUOTATION: "'" | "\""> | <OR: "|"> }
 TOKEN : { <NUMBER: <DIGITS> | <DIGITS> "." <DIGITS>> }
 TOKEN : { <VAR: <STR_VAR> | <STR_VAR><DIGITS> | <STR_VAR><DIGITS><STR_VAR>> }
 TOKEN : { <#DIGITS: (["0"-"9"])+> }
-TOKEN : { <#STR_VAR: (["a"-"z", "A"-"Z", "\u4e00"-"\u9fa5", "_"])+> }
+TOKEN : { <#STR_VAR: (["a"-"z", "A"-"Z", "\u4e00"-"\u9fa5", "_", "$"])+> }
 
 BigDecimal eval(): { BigDecimal result; }
 {

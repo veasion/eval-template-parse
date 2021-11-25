@@ -71,7 +71,7 @@ public class CalculatorTest {
                 put("product_amt", 10.25);
                 put("product", new HashMap<String, Object>() {{
                     put("user", new HashMap<String, Object>() {{
-                        put("age", 1);
+                        put("age", 18);
                         put("array", new int[]{10, 20, 30});
                     }});
                 }});
