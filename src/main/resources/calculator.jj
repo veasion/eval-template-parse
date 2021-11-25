@@ -1,6 +1,7 @@
 options {
     STATIC = false;
     JDK_VERSION = "1.8";
+    IGNORE_CASE = false;
     DEBUG_LOOKAHEAD = false;
 }
 
@@ -24,6 +25,16 @@ public class Calculator {
 
     public Map<String, Object> getVarMap() {
         return varMap;
+    }
+
+    public BigDecimal eval(String eval) throws Exception {
+        return eval(null, eval);
+    }
+
+    public BigDecimal eval(Object object, String eval) throws Exception {
+        setObject(object);
+        ReInit(new StringReader(eval));
+        return eval();
     }
 
     public void putVar(Token token, Token endToken, Object val) {
@@ -148,7 +159,10 @@ Object evalArray(Object obj): { Token token; Object temp; }
     (
         token = <NUMBER>
         { obj = EvalObjectUtils.parseArray(obj, token.image); }
-        | <QUOTATION> token = <VAR> <QUOTATION>
+        | LOOKAHEAD(2)
+        <QUOTATION> token = <VAR> <QUOTATION>
+        { obj = EvalObjectUtils.parseObject(obj, token.image); }
+        | <QUOTATION> token = <NUMBER> <QUOTATION>
         { obj = EvalObjectUtils.parseObject(obj, token.image); }
         | token = <VAR>
         temp = evalVar(object, token.image)

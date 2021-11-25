@@ -15,6 +15,8 @@ import java.util.function.Function;
  */
 public class CalculatorTest {
 
+    static Calculator calculator = new Calculator(new StringReader(""));
+
     public static void main(String[] args) throws Exception {
         testCalculate("-2");
         testCalculate("√8");
@@ -96,13 +98,11 @@ public class CalculatorTest {
         testCalculate(null, eval);
     }
 
-    private static void testCalculate(Object object, String eval) throws Exception {
-        Calculator parser = new Calculator(new StringReader(eval));
-        parser.setObject(object);
-        BigDecimal result = parser.eval();
+    private static synchronized void testCalculate(Object object, String eval) throws Exception {
+        BigDecimal result = calculator.eval(object, eval);
         System.out.println("计算：" + eval + "=" + decimalFormat(result, 2));
         if (object != null) {
-            System.out.println("变量集：" + parser.getVarMap());
+            System.out.println("变量集：" + calculator.getVarMap());
         }
     }
 
