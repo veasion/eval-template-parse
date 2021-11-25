@@ -64,9 +64,9 @@ public class CalculatorTest {
         System.out.println("======================");
         Map<String, Object> temp3 = new HashMap<String, Object>() {{
             put("order", new HashMap<String, Object>() {{
-                put("product_amt", 10.25);
                 put("num", 10);
                 put("field", "num");
+                put("product_amt", 10.25);
                 put("product", new HashMap<String, Object>() {{
                     put("user", new HashMap<String, Object>() {{
                         put("age", 1);
@@ -74,18 +74,22 @@ public class CalculatorTest {
                     }});
                 }});
             }});
+            put("ext", (Function<String, ?>) s -> {
+                if ("random".equals(s)) {
+                    return Math.random();
+                }
+                if ("date".equals(s)) {
+                    return System.currentTimeMillis();
+                }
+                return null;
+            });
         }};
-        Function<String, ?> function = s -> {
-            if ("random".equals(s)) {
-                return Math.random();
-            }
-            return temp3.get(s);
-        };
-        testCalculate(function, "order.product_amt * order.num + random");
-        testCalculate(function, "order.product_amt * order.num + random");
-        testCalculate(function, "order[order.field] * 2");
-        testCalculate(function, "order.product.user['age'] + order.product.user.age");
-        testCalculate(function, "order.product.user.array[0] + order.product.user.array[order.product.user.age]");
+        testCalculate(temp3, "order[order.field] * 2");
+        testCalculate(temp3, "order.product_amt * order.num + ext.random");
+        testCalculate(temp3, "order.product_amt * order.num + ext.random");
+        testCalculate(temp3, String.format("ext.date - %d", System.currentTimeMillis()));
+        testCalculate(temp3, "order.product.user['age'] + order.product.user.age");
+        testCalculate(temp3, "order.product.user.array[0] + order.product.user.array[order.product.user.age]");
     }
 
     private static void testCalculate(String eval) throws Exception {
