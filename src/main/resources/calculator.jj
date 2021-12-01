@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.HashMap;
 import java.io.StringReader;
 import java.math.BigDecimal;
-import cn.veasion.eval.EvalObjectUtils;
 public class Calculator {
     static int SCALE = 6;
     static int ROUNDING_MODE = BigDecimal.ROUND_HALF_UP;
@@ -39,7 +38,9 @@ public class Calculator {
     }
 
     public BigDecimal eval(Object object, String eval) throws Exception {
-        setObject(object);
+        if (object != null) {
+            setObject(object);
+        }
         ReInit(new StringReader(eval));
         return eval();
     }

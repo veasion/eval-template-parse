@@ -45,7 +45,7 @@ public class EvalParserTest {
         testEval(object, "order.product.user['age']");
         testEval(object, "order.product.user.array[order.product.user.index]");
         testEval(object, "order.field == 'num' && 1=='1'");
-        testEval(object, "order[order.field] == 10 && 1==1 && 1 == 2");
+        testEval(object, "order[order.field] == 10 && 1 eq 1 && 1 == 2");
         testEval(object, "(!(false))");
         testEval(object, "order[order.field] == 10 ? (1 != 2 ? order.field : order.product.user.age) : 'xxx'");
         testEval(object, "order.product.user.age > 18 || order.field != 'num'");

@@ -1,0 +1,177 @@
+options {
+    STATIC = false;
+    JDK_VERSION = "1.8";
+    DEBUG_LOOKAHEAD = false;
+}
+
+PARSER_BEGIN(TemplateParser)
+
+package cn.veasion.eval;
+
+import java.util.List;
+import java.util.ArrayList;
+import cn.veasion.eval.tpl.*;
+
+public class TemplateParser {
+    private Object object;
+    public void setObject(Object object) {
+        this.object = object;
+    }
+}
+
+PARSER_END(TemplateParser)
+
+TOKEN_MGR_DECLS :
+{
+    private List<Token> comments = new ArrayList<>();
+
+    public void autoJoinComment(Token token) {
+        comments.add(token);
+    }
+}
+
+// <#-- 注释 --#>
+MORE: { <ENTER_TEMPLATE_COMMENT: "<#--">: IN_TEMPLATE_COMMENT }
+<IN_TEMPLATE_COMMENT>
+MORE: { <COMMENT_CONTENT: ~[] > }
+<IN_TEMPLATE_COMMENT>
+SPECIAL_TOKEN: { <TEMPLATE_COMMENT: "--#>" > { autoJoinComment(matchedToken); } : DEFAULT }
+
+<DEFAULT>
+TOKEN: {
+    <#TRIM_BLANK: (["\t", " "])+>
+    | <#LINE: ("\r" | "\n" | "\r\n")>
+    | <#START: (<LINE>)? (<TRIM_BLANK>)* "<#">
+    | <#END_START: (<LINE>)? (<TRIM_BLANK>)* "</#">
+    | <#BLOCK_END: ">" (<TRIM_BLANK>)* (<LINE>)?>
+    | <#BLANK: (" " | "\t" | "\n" | "\r" | "\r\n")+>
+    | <IN_EVAL: "${" | "#{"> : EVAL
+    | <IF: <START> "if" <BLANK>> : BLOCK
+    | <ELSEIF: <START> "elseif" <BLANK>> : BLOCK
+    | <ELSE: <START> "else" <BLOCK_END>>
+    | <IF_END: <END_START> "if" <BLOCK_END>>
+    | <FOR: <START> "for" <BLANK>> : BLOCK
+    | <FOR_END: <END_START> "for" <BLOCK_END>>
+}
+
+<EVAL, BLOCK>
+SKIP: { <BLANK> }
+
+<EVAL, BLOCK>
+TOKEN: {
+    <EVAL_CODE:
+        (
+            "\"" (~["\""])* "\""
+            | "'" (~["'"])* "'"
+            | (~["}", ">"]) +
+            | (["\u4e00"-"\u9fa5"]) +
+        ) +
+    >
+}
+
+<BLOCK>
+TOKEN: { <OUT_BLOCK : ">" (<TRIM_BLANK>)* (<LINE>)?>: DEFAULT }
+
+<EVAL>
+TOKEN: { <OUT_EVAL: "}">: DEFAULT }
+
+<DEFAULT>
+TOKEN: {
+    <STATIC_STRING: ["\u0000"-"\uffff"]>
+}
+
+List<TemplateTree> parse(): { List<TemplateTree> ret; }
+{
+    ret = templateEval()
+    <EOF>
+    { return ret; }
+}
+
+List<TemplateTree> templateEval():
+{
+    TemplateTree temp;
+    List<TemplateTree> list = new ArrayList<>();
+}
+{
+    (
+        temp = ifEval()
+        { list.add(temp); }
+        | temp = forEval()
+        { list.add(temp); }
+        | temp = strEval()
+        { list.add(temp); }
+    ) *
+    { return list; }
+}
+
+TemplateTree ifEval():
+{
+    String eval;
+    IfTemplateTree ret;
+    Token pre, next, end;
+    List<TemplateTree> children;
+}
+{
+    pre = <IF>
+    eval = eval()
+    next = <OUT_BLOCK>
+    { ret = (IfTemplateTree) IfTemplateTree.build(TokenEnum.IF, eval).setPreNextToken(pre, next); }
+    children = templateEval()
+    { ret.setChildren(children); }
+    (
+        pre = <ELSEIF>
+        eval = eval()
+        next = <OUT_BLOCK>
+        { ret.setElseIfTree((IfTemplateTree) IfTemplateTree.build(TokenEnum.ELSE_IF, eval).setPreNextToken(pre, next)); }
+        children = templateEval()
+        { ret.getElseIfTree().setChildren(children); }
+    ) *
+    [
+        pre = <ELSE>
+        { ret.setElseTree((IfTemplateTree) IfTemplateTree.build(TokenEnum.ELSE, eval).setPreNextToken(pre)); }
+        children = templateEval()
+        { ret.getElseTree().setChildren(children); }
+    ]
+    end = <IF_END>
+    {
+        return ret.setEndToken(end);
+    }
+}
+
+TemplateTree forEval():
+{
+    String eval;
+    ForTemplateTree ret;
+    Token pre, next, end;
+    List<TemplateTree> children;
+}
+{
+    pre = <FOR>
+    eval = eval()
+    next = <OUT_BLOCK>
+    { ret = (ForTemplateTree) ForTemplateTree.build(TokenEnum.FOR, eval).setPreNextToken(pre, next); }
+    children = templateEval()
+    { ret.setChildren(children); }
+    end = <FOR_END>
+    {
+        return ret.setEndToken(end);
+    }
+}
+
+TemplateTree strEval():
+{
+    String eval;
+    Token token;
+}
+{
+    <IN_EVAL> eval = eval() <OUT_EVAL>
+    { return TemplateTree.build(TokenEnum.EVAL, eval); }
+    | token = <STATIC_STRING>
+    { return TemplateTree.build(TokenEnum.STRING, token.image); }
+}
+
+String eval(): { Token token; }
+{
+    token = <EVAL_CODE>
+    { return token.image; }
+}

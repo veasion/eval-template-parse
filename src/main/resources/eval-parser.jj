@@ -11,7 +11,6 @@ import java.util.HashMap;
 import java.util.Objects;
 import java.io.StringReader;
 import java.util.function.BiFunction;
-import cn.veasion.eval.EvalObjectUtils;
 public class EvalParser {
     private Object object;
     private boolean varTrace = true;
@@ -37,7 +36,9 @@ public class EvalParser {
     }
 
     public Object eval(Object object, String eval) throws Exception {
-        setObject(object);
+        if (object != null) {
+            setObject(object);
+        }
         ReInit(new StringReader(eval));
         return eval();
     }
@@ -85,7 +86,7 @@ PARSER_END(EvalParser)
 SPECIAL_TOKEN : { <SPACE: " " | "\r" | "\n" | "\f" | "\r\n"> }
 TOKEN : { <QUOTATION: "'" | "\""> | <QUESTION_MARK: "?"> | <COLON: ":"> | <POINT: "."> | <BANG: "!"> | <DEFAULT_VAL: "|"> }
 TOKEN : { <LPAREN: "("> | <RPAREN: ")"> | <LBRACKET: "["> | <RBRACKET: "]"> }
-TOKEN : { <OR: "||"> | <AND: "&&"> | <EQ: "=="> | <NEQ: "!="> | <GT: ">"> | <GTE: ">="> | <LT: "<"> | <LTE: "<="> }
+TOKEN : { <OR: "or" | "||"> | <AND: "and" | "&&"> | <EQ: "eq" | "=="> | <NEQ: "neq" | "!="> | <GT: "gt" | ">"> | <GTE: "gte" | ">="> | <LT: "lt" | "<"> | <LTE: "lte" | "<="> }
 TOKEN : { <TRUE: "true"> | <FALSE: "false"> | <NULL: "null"> }
 TOKEN : { <NUMBER: <DIGITS> | <DIGITS> "." <DIGITS>> }
 TOKEN : { <VAR: <STR_VAR> | <STR_VAR><DIGITS> | <STR_VAR><DIGITS><STR_VAR>> }

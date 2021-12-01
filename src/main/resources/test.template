@@ -1,0 +1,22 @@
+hello! 你好，我是${name}
+
+    很高兴认识你！
+<#if sex>性别：${sex}</#if>
+<#if age gt 0>
+年龄：${age}
+<#else>
+aaaaa
+</#if>
+awdesfrdf “”哈哈""sads';!efreg35=3469912!%296396-#^(%^__+
+
+用户列表：
+<#for users as item>
+姓名：${item.name}
+=== 其它属性 ===
+<#for item.attrMap as key, value>
+<#if key && value>
+${key}: ${value}
+</#if>
+</#for>
+</#for>
+====================
