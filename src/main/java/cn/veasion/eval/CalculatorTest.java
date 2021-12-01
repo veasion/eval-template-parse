@@ -71,6 +71,7 @@ public class CalculatorTest {
                 put("product_amt", 10.25);
                 put("product", new HashMap<String, Object>() {{
                     put("user", new HashMap<String, Object>() {{
+                        put("id", 1);
                         put("age", 18);
                         put("array", new int[]{10, 20, 30});
                     }});
@@ -91,7 +92,7 @@ public class CalculatorTest {
         testCalculate(temp3, "order.product_amt * order.num + ext.random");
         testCalculate(temp3, String.format("ext.date - %d", System.currentTimeMillis()));
         testCalculate(temp3, "order.product.user['age'] + order.product.user.age");
-        testCalculate(temp3, "order.product.user.array[0] + order.product.user.array[order.product.user.age]");
+        testCalculate(temp3, "order.product.user.array[0] + order.product.user.array[order.product.user.id]");
     }
 
     private static void testCalculate(String eval) throws Exception {
