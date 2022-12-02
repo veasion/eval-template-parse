@@ -1,8 +1,10 @@
-package cn.veasion.eval.tpl;
+package cn.veasion.eval;
 
-import cn.veasion.eval.EvalObjectUtils;
-import cn.veasion.eval.EvalParser;
-import cn.veasion.eval.TemplateParser;
+import cn.veasion.eval.tpl.BlockTemplateTree;
+import cn.veasion.eval.tpl.ForTemplateTree;
+import cn.veasion.eval.tpl.IfTemplateTree;
+import cn.veasion.eval.tpl.TemplateTree;
+import cn.veasion.eval.tpl.TokenEnum;
 
 import java.io.InputStream;
 import java.io.StringReader;
@@ -15,17 +17,32 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * TemplateParserUtils
+ * 模板解析工具类
  *
  * @author luozhuowei
  * @date 2021/11/30
  */
 public class TemplateParserUtils {
 
+    /**
+     * 模板
+     *
+     * @param object      对象
+     * @param inputStream 模板文件流
+     * @return 模板结果
+     */
     public static String parseTemplate(Object object, InputStream inputStream) throws Exception {
         return parseTemplate(object, inputStream, StandardCharsets.UTF_8);
     }
 
+    /**
+     * 模板
+     *
+     * @param object      对象
+     * @param inputStream 模板文件流
+     * @param encoding    字符编码
+     * @return 模板结果
+     */
     public static String parseTemplate(Object object, InputStream inputStream, Charset encoding) throws Exception {
         TemplateParser parser = new TemplateParser(inputStream, encoding);
         List<TemplateTree> treeList = parser.parse();

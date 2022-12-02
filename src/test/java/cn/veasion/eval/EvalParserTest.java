@@ -1,6 +1,5 @@
 package cn.veasion.eval;
 
-import java.io.StringReader;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
@@ -12,8 +11,6 @@ import java.util.function.Function;
  * @date 2021/11/25
  */
 public class EvalParserTest {
-
-    static EvalParser evalParser = new EvalParser(new StringReader(""));
 
     public static void main(String[] args) throws Exception{
         Map<String, Object> object = new HashMap<String, Object>() {{
@@ -39,6 +36,8 @@ public class EvalParserTest {
                 return null;
             });
         }};
+        testEval(object, "order.num");
+        testEval(object, "order['num']");
         testEval(object, "order[order.field]");
         testEval(object, "order.product_amt");
         testEval(object, "ext.random");
@@ -56,17 +55,21 @@ public class EvalParserTest {
     }
 
     private static void testEval(Object object, String eval) throws Exception {
-        Object result = evalParser.eval(object, eval);
+        Map<String, Object> varMap = new HashMap<>();
+        Object result = EvalParserUtils.eval(object, eval, varMap);
         System.out.println("表达式> " + eval);
-        System.out.println("变量值> " + evalParser.getVarMap());
+        System.out.println("变量值> " + varMap);
         System.out.println("结果> " + result);
+        System.out.println();
     }
 
     private static void testEvalReplace(Object object, String str) throws Exception {
-        Object result = evalParser.evalReplace(object, str);
+        Map<String, Object> varMap = new HashMap<>();
+        Object result = EvalParserUtils.template(object, str, varMap);
         System.out.println("字符串> " + str);
-        System.out.println("变量值> " + evalParser.getVarMap());
+        System.out.println("变量值> " + varMap);
         System.out.println("结果> " + result);
+        System.out.println();
     }
 
 }

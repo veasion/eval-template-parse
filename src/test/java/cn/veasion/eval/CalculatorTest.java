@@ -1,6 +1,5 @@
 package cn.veasion.eval;
 
-import java.io.StringReader;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.util.HashMap;
@@ -14,8 +13,6 @@ import java.util.function.Function;
  * @date 2021/11/22
  */
 public class CalculatorTest {
-
-    static Calculator calculator = new Calculator(new StringReader(""));
 
     public static void main(String[] args) throws Exception {
         testCalculate("-2");
@@ -100,10 +97,11 @@ public class CalculatorTest {
     }
 
     private static synchronized void testCalculate(Object object, String eval) throws Exception {
-        BigDecimal result = calculator.eval(object, eval);
+        Map<String, Object> varMap = new HashMap<>();
+        BigDecimal result = CalculatorUtils.calc(object, eval, varMap);
         System.out.println("计算：" + eval + "=" + decimalFormat(result, 2));
         if (object != null) {
-            System.out.println("变量集：" + calculator.getVarMap());
+            System.out.println("变量集：" + varMap);
         }
     }
 

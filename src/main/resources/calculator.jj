@@ -45,7 +45,7 @@ public class Calculator {
         return eval();
     }
 
-    public void putVar(Token token, Token endToken, Object val) {
+    private void putVar(Token token, Token endToken, Object val) {
         if (!varTrace) return;
         if (token == endToken || endToken == null) {
             varMap.put(token.image, val);
